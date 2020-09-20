@@ -17,50 +17,50 @@ class GeneticAlgorithm():
 
     ###############################################################################
 
-    def __init__(self, function, dimension, variable_type='bool', variable_boundaries=None, variable_type_mixed=None, function_timeout=10, algorithm_parameters={'max_num_iteration': None, 'population_size': 100, 'mutation_probability': 0.1, 'elit_ratio': 0.01, 'crossover_probability': 0.5, 'parents_portion': 0.3, 'crossover_type': 'uniform', 'max_iteration_without_improv': None}):
+    def __init__(self, function, parameters, function_timeout=10,
+                 algorithm_parameters={'max_num_iteration': None,
+                                       'population_size': 100,
+                                       'mutation_probability': 0.1,
+                                       'elit_ratio': 0.01,
+                                       'crossover_probability': 0.5,
+                                       'parents_portion': 0.3,
+                                       'crossover_type': 'uniform',
+                                       'max_iteration_without_improv': None}):
 
         self.__name__ = GeneticAlgorithm
         self.f = function
-        self.dim = int(dimension)
+        self.dim = int(len(list(parameters)))
 
-        assert(variable_type == 'bool' or variable_type == 'int' or variable_type ==
-               'real'), "Error: argument variable_type must be 'bool', 'int', or 'real'"
+        # Check that parameters object is type dict
+        assert(type(parameters) ==
+               list), "Error: argument parameters must be a list"
 
-        if variable_type_mixed is None:
-            if variable_type == 'real':
-                self.var_type = np.array([['real']]*self.dim)
-            else:
-                self.var_type = np.array([['int']]*self.dim)
+        # Validate input: Check that each item in parameters is a dictionary
+        for p in parameters:
+            assert(type(p) ==
+                   dict), "Error: parameters object must contain only dictionaries"
 
-        else:
-            assert (type(variable_type_mixed).__module__ ==
-                    'numpy'), "\n variable_type must be numpy array"
-            assert (len(variable_type_mixed) ==
-                    self.dim), "\n variable_type must have a length equal dimension."
+        # Validate input: Check each input parameter for expected type
+        for p in parameters:
+            assert(p['type'] in ['bool', 'int', 'real']
+                   ), "Error: unknown parameter type '{}'".format(p['type'])
 
-            for i in variable_type_mixed:
-                assert (i == 'real' or i == 'int'), "\n variable_type_mixed is either 'int' or 'real' " + \
-                    "ex:['int','real','real']" + \
-                    "\n for 'boolean' use 'int' and specify boundary as [0,1]"
+        for p in parameters:
+            assert(
+                p['bounds']), "Error: every parameter item must have bounds"
+            assert(
+                p['type']), "Error: every parameter item must have an explicit type"
 
-            self.var_type = variable_type_mixed
+            if p['type'] == 'bool':
+                assert(
+                    p['bounds'] == [0, 1]), "type 'bool' can only have bounds [0, 1]"
 
-        if variable_type != 'bool' or type(variable_type_mixed).__module__ == 'numpy':
+        # Create variable bounds object
+        self.var_bound = np.array([[x for x in p['bounds']]
+                                   for p in parameters])
 
-            assert (type(variable_boundaries).__module__ == 'numpy'),\
-                "\n variable_boundaries must be numpy array"
-
-            assert (len(variable_boundaries) == self.dim),\
-                "\n variable_boundaries must have a length equal dimension"
-
-            for i in variable_boundaries:
-                assert (len(i) == 2),\
-                    "\n boundary for each variable must be a tuple of length two."
-                assert(i[0] <= i[1]),\
-                    "\n lower_boundaries must be smaller than upper_boundaries [lower,upper]"
-            self.var_bound = variable_boundaries
-        else:
-            self.var_bound = np.array([[0, 1]]*self.dim)
+        # Variable type declaration
+        self.var_type = np.array([[p['type']] for p in parameters])
 
         self.funtimeout = float(function_timeout)
         self.param = algorithm_parameters
@@ -158,7 +158,8 @@ class GeneticAlgorithm():
         counter = 0
         while t <= self.iterate:
 
-            self.progress(t, self.iterate, status="GA is running...")
+            self.progress(t, self.iterate, status="Running algorithm...")
+
             # Sort
             pop = pop[pop[:, self.dim].argsort()]
 
