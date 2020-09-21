@@ -1,1 +1,1 @@
-# gentetic-algorithm
+# genetic-algorithm
