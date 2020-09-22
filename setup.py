@@ -1,10 +1,10 @@
 import setuptools
 
 setuptools.setup(
-    name = "genetic-algorithm",
+    name = "evolutionary_algorithm",
     version = "0.0.1",
     author = "Daniel Tucker",
-    author_email = "ryan.solgi@gmail.com",
+    author_email = "dmartintucker@gmail.com",
     maintainer = "Daniel M Tucker",
     description = "A simple evolutionary algorithm implementation in Python",
     url="https://github.com/dmartintucker/genetic-algorithm",
