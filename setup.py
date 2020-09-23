@@ -8,7 +8,7 @@ setuptools.setup(
     version="0.0.1",
     author="Daniel Tucker",
     author_email="dmartintucker@gmail.com",
-    maintainer="Daniel M Tucker",
+    maintainer="Daniel Tucker",
     description="An evolutionary (genetic) algorithm designed specifically for optimizing predictive models with integer, real, boolean, and categorical inputs.",
     long_description=long_description,
     long_description_content_type="text/markdown",
