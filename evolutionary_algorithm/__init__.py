@@ -1,2 +1,2 @@
 # Import class from main.py
-from .main import GeneticAlgorithm
+from .main import EvolutionaryAlgorithm

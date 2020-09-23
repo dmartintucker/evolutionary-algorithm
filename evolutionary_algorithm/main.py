@@ -1,11 +1,15 @@
 
 # Global dependencies
 import sys
-import time
 import random
 import numpy as np
 import pandas as pd
 from func_timeout import func_timeout, FunctionTimedOut
+from tqdm import tqdm
+
+###############################################################################
+###############################################################################
+###############################################################################
 
 
 class EvolutionaryAlgorithm():
@@ -24,7 +28,7 @@ class EvolutionaryAlgorithm():
     # Initialize class object
     def __init__(self, function, parameters, function_timeout=10,
                  algorithm_parameters={'max_num_iteration': None,
-                                       'population_size': 50,
+                                       'population_size': 100,
                                        'mutation_probability': 0.1,
                                        'elite_ratio': 0.1,
                                        'crossover_probability': 0.5,
@@ -55,7 +59,7 @@ class EvolutionaryAlgorithm():
 
         # Validate input: Check each input parameter for expected type
         for p in parameters:
-            assert(p['type'] in ['bool', 'int', 'real']
+            assert(p['type'] in ['bool', 'int', 'real', 'cat']
                    ), "Error: unknown parameter type '{}'".format(p['type'])
 
         # Validate input: All parameters must have bound and types
@@ -69,9 +73,14 @@ class EvolutionaryAlgorithm():
                 assert(
                     p['bounds'] == [0, 1]), "\nError: type 'bool' can only have bounds [0, 1]"
 
+            if p['type'] == 'cat':
+                for k in p['bounds']:
+                    assert(
+                        type(k) == str), "\nError: type 'cat' must have strings as bounds"
+
         # Create variable bounds object
         self.var_bound = np.array([[x for x in p['bounds']]
-                                   for p in parameters])
+                                   for p in parameters], dtype=object)
 
         # Variable type declaration
         self.var_type = np.array([[p['type']] for p in parameters])
@@ -119,7 +128,7 @@ class EvolutionaryAlgorithm():
 
         # Set max number of iterations
         if self.param['max_num_iteration'] == None:
-            self.iterate = 2
+            self.iterate = 10
         else:
             self.iterate = int(self.param['max_num_iteration'])
 
@@ -141,7 +150,7 @@ class EvolutionaryAlgorithm():
     def run(self):
 
         pop = []
-        solo = np.zeros(self.dim+1)
+        # solo = np.zeros(self.dim+1)
         var = np.zeros(self.dim)
 
         for p in range(0, self.pop_s):
@@ -153,19 +162,26 @@ class EvolutionaryAlgorithm():
                     val = np.random.randint(
                         self.var_bound[i][0], self.var_bound[i][1]+1)
                     vars[self.var_names[i][0]] = val
-                    solo[i] = val
+                    # solo[i] = val
 
                 elif self.var_type[i][0] == 'real':
                     val = self.var_bound[i][0]+np.random.random() * \
                         (self.var_bound[i][1]-self.var_bound[i][0])
                     vars[self.var_names[i][0]] = val
-                    solo[i] = self.var_bound[i][0]+np.random.random() * \
-                        (self.var_bound[i][1]-self.var_bound[i][0])
+                    # solo[i] = self.var_bound[i][0]+np.random.random() * \
+                    #     (self.var_bound[i][1]-self.var_bound[i][0])
 
-                else:
+                elif self.var_type[i][0] == 'bool':
                     val = random.choice(self.var_bound[i])
                     vars[self.var_names[i][0]] = val
-                    solo[i] = val
+                    #solo[i] = val
+
+                elif self.var_type[i][0] == 'cat':
+                    val = random.choice(self.var_bound[i])
+                    vars[self.var_names[i][0]] = val
+                    #solo[i] = val
+
+            # sys.stdout.write('\n' + str(vars))
 
             obj = self.sim(vars)
             vars['OBJ'] = obj
@@ -175,12 +191,11 @@ class EvolutionaryAlgorithm():
         self.test_obj = obj
         self.best_variable = {i[0]: vars[i[0]] for i in self.var_names}
         self.best_function = obj
+        # sys.stdout.write('\n' + str(self.best_variable))
 
         t = 1
         counter = 0
-        for t in range(self.iterate):
-
-            self.progress(t, self.iterate, status="Running algorithm...")
+        for t in tqdm(range(self.iterate)):
 
             # Sort population by fitness, ascending
             pop = sorted(pop, key=lambda k: k['OBJ'], reverse=False)
@@ -241,6 +256,7 @@ class EvolutionaryAlgorithm():
             ch = self.cross(pvar1, pvar2, self.c_type)
             ch1 = ch[0]
             ch2 = ch[1]
+            # sys.stdout.write('\n' + str(ch))
 
             ch1 = self.mut(ch1)
             ch2 = self.mutmidle(ch2, pvar1, pvar2)
@@ -251,13 +267,13 @@ class EvolutionaryAlgorithm():
             ch2['OBJ'] = obj
             pop.append(ch2)
 
+            t += 1
+
             if counter > self.mniwi:
                 pop = sorted(pop, key=lambda k: k['OBJ'], reverse=False)
 
                 if pop[0]['OBJ'] >= self.best_function:
                     t = self.iterate
-                    self.progress(t, self.iterate, status="GA is running...")
-                    time.sleep(2)
                     t += 1
                     self.stop_mniwi = True
 
@@ -271,20 +287,21 @@ class EvolutionaryAlgorithm():
         self.report.append(pop[0]['OBJ'])
         self.output_dict = {'variable': self.best_variable, 'function':
                             self.best_function}
-        show = ' '*100
-
         self.best_params = self.best_variable
-        sys.stdout.write('\r%s' % (show))
+
+        # Write final results to stdout
+        sys.stdout.flush()
         sys.stdout.write(
-            '\nBest parameters found: {}'.format(str(self.best_params)))
+            'Best parameters found: {}'.format(str(self.best_params)))
+        sys.stdout.flush()
         sys.stdout.write('\nBest objective output = {}'.format(
             str(self.best_function)))
         sys.stdout.flush()
         if self.stop_mniwi == True:
             sys.stdout.write(
-                'Terminating algorithm: Exceeded maximum iterations without improvement.')
+                '\nTerminating algorithm: Exceeded maximum iterations without improvement.')
 
-##############################################################################
+    ##############################################################################
 
     def cross(self, x, y, c_type):
 
@@ -293,21 +310,20 @@ class EvolutionaryAlgorithm():
 
         if c_type == 'one_point':
             ran = np.random.randint(0, self.dim)
+
             for i in range(0, ran):
-                ofs1[i] = y[i]
-                ofs2[i] = x[i]
+                ofs1[i[0]] = y[i[0]]
+                ofs2[i[0]] = x[i[0]]
 
         if c_type == 'two_point':
-
             ran1 = np.random.randint(0, self.dim)
             ran2 = np.random.randint(ran1, self.dim)
 
             for i in range(ran1, ran2):
-                ofs1[i] = y[i]
-                ofs2[i] = x[i]
+                ofs1[i[0]] = y[i[0]]
+                ofs2[i[0]] = x[i[0]]
 
         if c_type == 'uniform':
-
             for i in self.var_names:
                 ran = np.random.random()
 
@@ -317,26 +333,33 @@ class EvolutionaryAlgorithm():
 
         return [ofs1, ofs2]
 
-###############################################################################
+    ###############################################################################
 
     def mut(self, x):
         var = list(x)
 
         for i in range(len(self.var_type)):
+
             if self.var_type[i][0] == 'int':
                 ran = np.random.random()
+
                 if ran < self.prob_mut:
                     x[var[i]] = np.random.randint(self.var_bound[i][0],
                                                   self.var_bound[i][1]+1)
+
                 elif self.var_type[i][0] == 'real':
                     x[var[i]] = self.var_bound[i][0]+np.random.random() *\
                         (self.var_bound[i][1]-self.var_bound[i][0])
-                else:
+
+                elif self.var_type[i][0] == 'bool':
+                    x[var[i]] = random.choice(self.var_bound[i])
+
+                elif self.var_type[i][0] == 'cat':
                     x[var[i]] = random.choice(self.var_bound[i])
 
         return x
 
-###############################################################################
+    ###############################################################################
 
     def mutmidle(self, x, p1, p2):
 
@@ -345,6 +368,7 @@ class EvolutionaryAlgorithm():
         for i in range(len(self.var_type)):
             ran = np.random.random()
 
+            # Integer vars
             if self.var_type[i][0] == 'int':
                 if ran < self.prob_mut:
                     if p1[var[i]] < p2[var[i]]:
@@ -355,6 +379,7 @@ class EvolutionaryAlgorithm():
                         x[var[i]] = np.random.randint(self.var_bound[i][0],
                                                       self.var_bound[i][1]+1)
 
+            # Float vars
             elif self.var_type[i][0] == 'real':
                 if ran < self.prob_mut:
                     if p1[var[i]] < p2[var[i]]:
@@ -367,48 +392,46 @@ class EvolutionaryAlgorithm():
                         x[var[i]] = self.var_bound[i][0]+np.random.random() *\
                             (self.var_bound[i][1]-self.var_bound[i][0])
 
-            else:
+            # Boolean vars
+            elif self.var_type[i][0] == 'bool':
                 if ran < self.prob_mut:
                     if p1[var[i]] < p2[var[i]]:
                         x[var[i]] = p1[var[i]]+np.random.random() *\
                             (p2[var[i]]-p1[var[i]])
-                    elif p1[i] > p2[var[i]]:
+                    elif p1[var[i]] > p2[var[i]]:
                         x[var[i]] = p2[var[i]]+np.random.random() *\
                             (p1[var[i]]-p2[var[i]])
                     else:
                         x[var[i]] = random.choice(self.var_bound[i])
 
+            # Categorical vars
+            elif self.var_type[i][0] == 'cat':
+                if ran < self.prob_mut:
+                    x[var[i]] = random.choice(self.var_bound[i])
+
         return x
 
-###############################################################################
+    ###############################################################################
 
     def evaluate(self):
         return self.f(self.temp)
 
-###############################################################################
+    ###############################################################################
 
     def sim(self, X):
         self.temp = X.copy()
         obj = None
+
         try:
             obj = func_timeout(self.funtimeout, self.evaluate)
+
         except FunctionTimedOut:
             print("given function is not applicable")
-        assert (obj != None), "After {} seconds delay func_timeout: the given function does not provide any output".format(
+
+        assert (obj != None), "Objective function failed to provide output within {} seconds".format(
             str(self.funtimeout))
+
         return obj
-
-###############################################################################
-
-    def progress(self, count, total, status=''):
-        bar_len = 50
-        filled_len = int(round(bar_len * count / float(total)))
-
-        percents = round(100.0 * count / float(total), 1)
-        bar = '|' * filled_len + '_' * (bar_len - filled_len)
-
-        sys.stdout.write('\r%s %s%s %s' % (bar, percents, '%', status))
-        sys.stdout.flush()
 
 ###############################################################################
 ###############################################################################
